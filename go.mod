@@ -1,3 +1,3 @@
-module github.com/ucarion/urlpath
+module github.com/pinoOgni/urlpath
 
-go 1.12
+go 1.17
