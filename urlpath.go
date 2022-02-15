@@ -216,3 +216,77 @@ func (p *Path) Build(m Match) (string, bool) {
 
 	return s.String(), true
 }
+
+
+
+
+/*
+	================================================
+			NEW METHODS FOR POLYCUBE-GRPC CASE
+	================================================
+
+	
+*/
+
+
+/*
+
+	This method was created starting from the previous one and is used for a specific case which is that of 
+	the polycube-grpc-go library. Basically we needed a method that given a string representing a template 
+	and a string representing a url (of a request), would return a match. It is used in a keyed method map 
+	given by the template and the http verb.
+
+	Obviously, the part that returns an element of type Match has been left which can later be used to extract
+	the values of the wildcards
+
+*/
+
+func MatchPath(template string, url string) (Match, bool) {
+	params := map[string]string{}
+	p := New(template)
+	for segmentIndex, segment := range p.Segments {
+		// s[:i] is the prefix of s which contains the segment that must match
+		// against the path. s[j:] is the suffix of s which the next iteration of
+		// the loop will operate on.
+		//
+		// In "ordinary" circumstances, s[:i] is everything up to the first slash,
+		// and s[j:] is everything after it. But when there are no remaining slashes
+		// in the input, s[:i] is the entire string, and s[j:] is the empty string.
+		i := strings.IndexByte(url, '/')
+		j := i + 1
+		if i == -1 {
+			i = len(url)
+			j = len(url)
+
+			// If we have run out of slashes before the last element of the segments,
+			// then the input does not match the path.
+			//
+			// Implicitly, allowing for trailing input effectively adds an additional
+			// required slash to the input that's not captured by p.Segments. If
+			// trailing input is allowed, it's never ok for an input to have fewer
+			// slashes than the path has segments (an equal number is ok, and
+			// corresponds to a trailing part with no slashes in it).
+			if segmentIndex != len(p.Segments)-1 || p.Trailing {
+				return Match{}, false
+			}
+		} else {
+			// If we have slashes left over and we are not ok with trailing input,
+			// then the input does not match the path.
+			if segmentIndex == len(p.Segments)-1 && !p.Trailing {
+				return Match{}, false
+			}
+		}
+
+		if segment.IsParam {
+			params[segment.Param] = url[:i]
+		} else {
+			if url[:i] != segment.Const {
+				return Match{}, false
+			}
+		}
+
+		url = url[j:]
+	}
+
+	return Match{Params: params, Trailing: url}, true
+}
